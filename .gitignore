@@ -1,0 +1,275 @@
+# 以下是我为您创建的.gitignore文件内容
+# 您可以直接复制整个内容到您的.gitignore文件中
+
+# ====================
+# Python
+# ====================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Distribution / packaging
+.Python build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# PEP 582
+__pypackages__/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# Virtual Studio
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+
+# ====================
+# FastAPI
+# ====================
+# Database
+*.db
+*.sqlite3
+*.sqlite
+
+# Uploads
+uploads/
+media/
+static/uploads/
+temp_uploads/
+
+# ====================
+# YOLOv8 / Computer Vision
+# ====================
+# Model weights
+*.pt
+*.pth
+*.weights
+*.onnx
+*.engine
+*.trt
+*.mlmodel
+*.tflite
+*.pb
+*.h5
+*.pkl
+*.joblib
+
+# Datasets
+datasets/
+data/
+!data/.gitkeep
+!datasets/.gitkeep
+
+# Outputs
+runs/
+outputs/
+results/
+detections/
+predictions/
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.mp4
+*.avi
+*.mov
+*.mkv
+!static/images/placeholder.jpg
+
+# TensorBoard logs
+runs/
+lightning_logs/
+
+# ====================
+# Vue.js / Frontend
+# ====================
+# Node modules
+frontend/node_modules/
+frontend/package-lock.json
+frontend/yarn.lock
+frontend/pnpm-lock.yaml
+
+# Vue build outputs
+frontend/dist/
+frontend/dist-ssr/
+
+# Local env files
+frontend/.env.local
+frontend/.env.*.local
+
+# Editor directories and files
+frontend/.idea
+frontend/.vscode
+frontend/*.suo
+frontend/*.ntvs*
+frontend/*.njsproj
+frontend/*.sln
+frontend/*.sw?
+
+# Debug logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# ====================
+# Docker
+# ====================
+*.pid
+docker-compose.override.yml
+Dockerfile.dev
+.dockerignore
+docker/data/
+docker/logs/
+
+# ====================
+# OS generated files
+# ====================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.swp
+*.swo
+*~
+~
+
+# ====================
+# IDE
+# ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.code-workspace
+
+# ====================
+# Logs and temporary files
+# ====================
+*.log
+*.tmp
+*.temp
+*.cache
+*.pid
+*.seed
+*.pid.lock
+
+# ====================
+# Backend specific
+# ====================
+# Backend Python cache
+backend/__pycache__/
+backend/*.pyc
+
+# Backend uploads
+backend/uploads/
+backend/static/uploads/
+backend/temp/
+
+# ====================
+# Keep directories with placeholder
+# ====================
+!**/.gitkeep
+
+# ====================
+# SSL certificates
+# ====================
+*.pem
+*.key
+*.crt
+!ssl/example.pem
+
+# ====================
+# Project specific
+# ====================
+# API keys and secrets
+*.secret
+secrets/
+config/local.yaml
+config/development.yaml
+!config/example.yaml
+
+# Backup files
+backup/
+*.backup
+*.bak
+
+# ====================
+# Tests
+# ====================
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+test_outputs/
+birdFlower.webp
+testImage.jpg
