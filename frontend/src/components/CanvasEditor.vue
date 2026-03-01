@@ -47,26 +47,35 @@ onMounted(() => {
   }))
 })
 
-// 1. 加载本地图片到 Canvas 背景
+// 1. 加载本地图片到 Canvas 背景 (完全适配 Fabric.js v7)
 const handleImageUpload = (event) => {
- const file = event.target.files[0]
+  const file = event.target.files[0]
   if (!file) return
   currentFile.value = file
   errorMessage.value = ''
 
   const reader = new FileReader()
-  reader.onload = (f) => {
-    fabric.Image.fromURL(f.target.result, (img) => {
-      // 第一步：先清空画布上的所有历史对象（包括旧的标注和旧背景）
+  reader.onload = async (f) => {
+    try {
+      // v7：类名改为 FabricImage，且采用 Promise 规范
+      const img = await fabric.FabricImage.fromURL(f.target.result)
+      
+      // 清空画布历史对象
       canvas.value.clear()
 
-      // 第二步：根据新图片的真实尺寸调整画布大小
-      canvas.value.setWidth(img.width)
-      canvas.value.setHeight(img.height)
+      // v7：统一使用 setDimensions 设置尺寸
+      canvas.value.setDimensions({
+        width: img.width,
+        height: img.height
+      })
 
-      // 第三步：将新图片设置为背景，并在设置完成后触发一次渲染
-      canvas.value.setBackgroundImage(img, canvas.value.renderAll.bind(canvas.value))
-    })
+      // v7：直接赋值背景图片属性
+      canvas.value.backgroundImage = img
+      canvas.value.renderAll()
+    } catch (error) {
+      console.error('图片加载到画布失败:', error)
+      errorMessage.value = '图片渲染失败，请检查格式'
+    }
   }
   reader.readAsDataURL(file)
 }
@@ -97,48 +106,49 @@ const runYoloPrediction = async () => {
   }
 }
 
-// 3. 渲染 YOLO 返回的归一化坐标框
+// 3. 渲染 YOLO 返回的归一化坐标框 (完全适配 Fabric.js v7)
 const renderBoundingBoxes = (boxes) => {
   const canvasWidth = canvas.value.width
   const canvasHeight = canvas.value.height
 
   boxes.forEach(box => {
-    // 【核心算数】：将归一化坐标 (0~1) 转换为绝对像素坐标
+    // 归一化坐标 (0~1) 转为绝对像素坐标
     const rectWidth = box.width * canvasWidth
     const rectHeight = box.height * canvasHeight
-    // YOLO 的 x_center, y_center 是中心点，Fabric 的 left, top 默认是左上角
     const left = (box.x_center * canvasWidth) - (rectWidth / 2)
     const top = (box.y_center * canvasHeight) - (rectHeight / 2)
 
-    // 创建矩形框（遵循 PRD 要求：黄色线条）
+    // 创建矩形框（Rect 类名不变）
     const rect = new fabric.Rect({
       left: left,
       top: top,
       width: rectWidth,
       height: rectHeight,
-      fill: 'transparent', // 内部透明
-      stroke: 'yellow',    // 边框黄色
+      fill: 'transparent', 
+      stroke: 'yellow',    
       strokeWidth: 2,
       cornerColor: 'red',
       cornerSize: 8,
       transparentCorners: false,
-      hasRotatingPoint: false, // 标注框通常不需要旋转
-      class_index: box.class_index // 挂载自定义属性，方便后续导出
+      class_index: box.class_index // 挂载自定义属性
     })
+    
+    // v7：使用 setControlVisible 替代旧的 hasRotatingPoint 属性来隐藏旋转把手
+    rect.setControlVisible('mtr', false) 
 
-    // 创建类别标签文本
+    // 创建类别标签文本 (v7：类名改为 FabricText)
     const className = classMap[box.class_index] || `类_${box.class_index}`
-    const label = new fabric.Text(className, {
+    const label = new fabric.FabricText(className, {
       left: left,
-      top: top > 20 ? top - 20 : top, // 防止文字超出顶部
+      top: top > 20 ? top - 20 : top,
       fontSize: 16,
       fill: 'black',
       backgroundColor: 'yellow',
-      selectable: false, // 文本标签设为不可选，仅作为展示
+      selectable: false, // 文本设为不可选
       evented: false
     })
 
-    // 将框和文本添加到画布
+    // 添加到画布
     canvas.value.add(rect, label)
 
     // 联动逻辑：移动/缩放矩形时，文本标签跟着走
@@ -146,7 +156,6 @@ const renderBoundingBoxes = (boxes) => {
       label.set({ left: rect.left, top: rect.top > 20 ? rect.top - 20 : rect.top })
     })
     rect.on('scaling', () => {
-      // 缩放时 left 和 top 也会变
       label.set({ left: rect.left, top: rect.top > 20 ? rect.top - 20 : rect.top })
     })
   })
@@ -187,6 +196,6 @@ const renderBoundingBoxes = (boxes) => {
 }
 .canvas-wrapper {
   border: 1px solid #ccc;
-  overflow: auto; /* 允许出现滚动条 */
+  overflow: auto; 
 }
 </style>
