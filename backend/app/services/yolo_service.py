@@ -25,33 +25,27 @@ class YOLOService:
             return {"success": False, "names": {}, "message": f"模型加载失败: {str(e)}"}
 
     def predict(self, image_bytes: bytes) -> list:
-        """
-        对传入的图片字节流进行推理，返回归一化坐标的检测框列表
-        """
         if self.model is None:
             raise ValueError("模型未加载，请先加载模型")
 
-        # 将字节流转换为 PIL Image 对象，ultralytics 原生支持
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-        
-        # 执行推理
         results = self.model.predict(source=image, device=self.device, verbose=False)
         
         boxes_data = []
         if len(results) > 0:
             result = results[0]
-            # 获取归一化的 xywh (x_center, y_center, width, height)
-            xywhn = result.boxes.xywhn.cpu().numpy()
+            # 【关键修改】：使用 xyxyn (x_min, y_min, x_max, y_max) 替代 xywhn
+            xyxyn = result.boxes.xyxyn.cpu().numpy()
             classes = result.boxes.cls.cpu().numpy()
             confs = result.boxes.conf.cpu().numpy()
 
             for i in range(len(classes)):
                 boxes_data.append({
                     "class_index": int(classes[i]),
-                    "x_center": float(xywhn[i][0]),
-                    "y_center": float(xywhn[i][1]),
-                    "width": float(xywhn[i][2]),
-                    "height": float(xywhn[i][3]),
+                    "x_min": float(xyxyn[i][0]),
+                    "y_min": float(xyxyn[i][1]),
+                    "x_max": float(xyxyn[i][2]),
+                    "y_max": float(xyxyn[i][3]),
                     "confidence": float(confs[i])
                 })
         return boxes_data

@@ -28,6 +28,7 @@ const canvas = ref(null)
 const currentFile = ref(null)
 const isPredicting = ref(false)
 const errorMessage = ref('')
+const imageInfo = ref({ width: 800, height: 600 })
 
 // 模拟的类别映射（后续可从 Pinia 全局状态获取）
 const classMap = {
@@ -43,11 +44,13 @@ onMounted(() => {
   canvas.value = markRaw(new fabric.Canvas('annotation-canvas', {
     width: 800,
     height: 600,
-    selection: false // 禁用多选框，方便单选标注
+    selection: false, // 禁用多选框，方便单选标注
+    enableRetinaScaling: false
   }))
 })
 
 // 1. 加载本地图片到 Canvas 背景 (完全适配 Fabric.js v7)
+// 1. 加载本地图片到 Canvas 背景 (修复 Retina 屏幕 DPI 偏移问题)
 const handleImageUpload = (event) => {
   const file = event.target.files[0]
   if (!file) return
@@ -57,19 +60,25 @@ const handleImageUpload = (event) => {
   const reader = new FileReader()
   reader.onload = async (f) => {
     try {
-      // v7：类名改为 FabricImage，且采用 Promise 规范
       const img = await fabric.FabricImage.fromURL(f.target.result)
       
-      // 清空画布历史对象
       canvas.value.clear()
 
-      // v7：统一使用 setDimensions 设置尺寸
+      // 【关键修复 1】：强制将图片的原点对齐到左上角
+      img.set({ originX: 'left', originY: 'top' })
+
+      // 【关键修复 2】：记录图片的绝对逻辑尺寸
+      imageInfo.value = {
+        width: img.width,
+        height: img.height
+      }
+
+      // 设置画布尺寸与图片真实尺寸完全一致
       canvas.value.setDimensions({
         width: img.width,
         height: img.height
       })
 
-      // v7：直接赋值背景图片属性
       canvas.value.backgroundImage = img
       canvas.value.renderAll()
     } catch (error) {
@@ -106,37 +115,36 @@ const runYoloPrediction = async () => {
   }
 }
 
-// 3. 渲染 YOLO 返回的归一化坐标框 (完全适配 Fabric.js v7)
+// 3. 渲染 YOLO 返回的归一化坐标框
 const renderBoundingBoxes = (boxes) => {
-  const canvasWidth = canvas.value.width
-  const canvasHeight = canvas.value.height
+  const logicalWidth = imageInfo.value.width
+  const logicalHeight = imageInfo.value.height
 
   boxes.forEach(box => {
-    // 归一化坐标 (0~1) 转为绝对像素坐标
-    const rectWidth = box.width * canvasWidth
-    const rectHeight = box.height * canvasHeight
-    const left = (box.x_center * canvasWidth) - (rectWidth / 2)
-    const top = (box.y_center * canvasHeight) - (rectHeight / 2)
+    // 【关键修改】：直接使用 min/max 换算，彻底抛弃 - width/2 的中心换算
+    const left = box.x_min * logicalWidth
+    const top = box.y_min * logicalHeight
+    const rectWidth = (box.x_max - box.x_min) * logicalWidth
+    const rectHeight = (box.y_max - box.y_min) * logicalHeight
 
-    // 创建矩形框（Rect 类名不变）
     const rect = new fabric.Rect({
       left: left,
       top: top,
       width: rectWidth,
       height: rectHeight,
+      originX: 'left', // 显式锁定原点为左上角
+      originY: 'top',  // 显式锁定原点为左上角
       fill: 'transparent', 
       stroke: 'yellow',    
       strokeWidth: 2,
       cornerColor: 'red',
       cornerSize: 8,
       transparentCorners: false,
-      class_index: box.class_index // 挂载自定义属性
+      class_index: box.class_index
     })
     
-    // v7：使用 setControlVisible 替代旧的 hasRotatingPoint 属性来隐藏旋转把手
     rect.setControlVisible('mtr', false) 
 
-    // 创建类别标签文本 (v7：类名改为 FabricText)
     const className = classMap[box.class_index] || `类_${box.class_index}`
     const label = new fabric.FabricText(className, {
       left: left,
@@ -144,14 +152,12 @@ const renderBoundingBoxes = (boxes) => {
       fontSize: 16,
       fill: 'black',
       backgroundColor: 'yellow',
-      selectable: false, // 文本设为不可选
+      selectable: false,
       evented: false
     })
 
-    // 添加到画布
     canvas.value.add(rect, label)
 
-    // 联动逻辑：移动/缩放矩形时，文本标签跟着走
     rect.on('moving', () => {
       label.set({ left: rect.left, top: rect.top > 20 ? rect.top - 20 : rect.top })
     })

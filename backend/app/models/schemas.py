@@ -14,10 +14,10 @@ class ModelLoadResponse(BaseModel):
 # --- 推理结果相关 ---
 class BoundingBox(BaseModel):
     class_index: int
-    x_center: float  # 归一化坐标 (0~1)
-    y_center: float  # 归一化坐标 (0~1)
-    width: float     # 归一化宽度 (0~1)
-    height: float    # 归一化高度 (0~1)
+    x_min: float  # 归一化左上角 x (0~1)
+    y_min: float  # 归一化左上角 y (0~1)
+    x_max: float  # 归一化右下角 x (0~1)
+    y_max: float  # 归一化右下角 y (0~1)
     confidence: float
 
 class YoloPredictResponse(BaseModel):
