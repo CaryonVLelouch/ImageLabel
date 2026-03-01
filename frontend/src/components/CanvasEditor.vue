@@ -44,8 +44,7 @@ onMounted(() => {
   canvas.value = markRaw(new fabric.Canvas('annotation-canvas', {
     width: 800,
     height: 600,
-    selection: false, // 禁用多选框，方便单选标注
-    enableRetinaScaling: false
+    selection: false// 禁用多选框，方便单选标注
   }))
 })
 
