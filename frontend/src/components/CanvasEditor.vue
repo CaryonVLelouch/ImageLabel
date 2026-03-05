@@ -36,6 +36,7 @@
         <div class="action-group">
           <button class="action-btn discard" @click="imageStore.markAndNext('DISCARDED')">✖ 舍弃图片</button>
           <button class="action-btn confirm" @click="imageStore.markAndNext('PASS')">✔ 确认并继续</button>
+          <button class="action-btn export" @click="handleExport">📦 导出ZIP</button>
         </div>
       </div>
     </div>
@@ -72,9 +73,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, markRaw, watch } from 'vue'
-import * as fabric from 'fabric'
-import axios from 'axios'
+import JSZip from 'jszip'// 用于前端生成 ZIP 文件
+import { ref, onMounted, markRaw, watch } from 'vue'// Vue 3 的 Composition API
+import * as fabric from 'fabric'// 强大的 HTML5 Canvas 库，用于实现标注功能
+import axios from 'axios'// 用于与后端 API 交互
 import { useImageStore } from '../stores/useImageStore'
 import { normalizedToFabricRect, fabricRectToNormalized } from '../utils/coordinateUtils' 
 
@@ -268,6 +270,66 @@ const deleteSelected = () => {
   const activeObject = canvas.value.getActiveObject()
   if (activeObject && activeObject.annoId) deleteAnnotationById(activeObject.annoId)
 }
+
+// === 新增：导出为 ZIP 文件 (YOLO 格式) ===
+const handleExport = async () => {
+  // 过滤出已经处理过（确认或舍弃）的图片
+  const processedImages = imageStore.imageList.filter(img => img.status !== 'UNPROCESSED')
+  
+  if (processedImages.length === 0) {
+    alert('暂无已确认或已舍弃的图片可导出！')
+    return
+  }
+
+  const zip = new JSZip()
+  // 创建分类文件夹
+  const confirmedFolder = zip.folder('confirmed')
+  const discardedFolder = zip.folder('discarded')
+
+  processedImages.forEach(img => {
+    // 1. 获取基础文件名 (去除 .jpg, .png 等后缀)
+    const baseName = img.fileName.substring(0, img.fileName.lastIndexOf('.')) || img.fileName
+    const txtFileName = `${baseName}.txt`
+
+    // 2. 将标注转换为 YOLO 格式文本 (多目标换行)
+    const yoloLines = img.annotations.map(anno => {
+      const box = anno.box
+      const width = box.x_max - box.x_min
+      const height = box.y_max - box.y_min
+      const x_center = box.x_min + (width / 2)
+      const y_center = box.y_min + (height / 2)
+      
+      // 格式：class_index x_center y_center width height (保留6位小数)
+      return `${anno.className} ${x_center.toFixed(6)} ${y_center.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}`
+    })
+
+    const txtContent = yoloLines.join('\n')
+
+    // 3. 按照状态写入不同的文件夹
+    if (img.status === 'PASS') {
+      confirmedFolder.file(txtFileName, txtContent)
+    } else if (img.status === 'DISCARDED') {
+      discardedFolder.file(txtFileName, txtContent)
+    }
+  })
+
+  // 4. 生成带时间戳的文件名 (例如: export_20260305_153022)
+  const now = new Date()
+  const pad = (n) => n.toString().padStart(2, '0')
+  const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`
+  const zipFileName = `export_${timestamp}.zip`
+
+  // 5. 打包并触发浏览器下载
+  const content = await zip.generateAsync({ type: 'blob' })
+  const url = window.URL.createObjectURL(content)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = zipFileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
 </script>
 
 <style scoped>
@@ -302,7 +364,8 @@ input[type="file"] { display: none; }
 .nav-btn:hover:not(:disabled) { border-color: #1890ff; color: #1890ff; }
 .nav-btn:disabled { background-color: #f5f5f5; color: #bfbfbf; cursor: not-allowed; }
 .progress-text { font-size: 14px; font-weight: bold; color: #333; display: flex; align-items: center; gap: 10px; }
-
+.action-btn.export { background-color: #722ed1; margin-left: 10px; }
+.action-btn.export:hover { background-color: #9254de; } 
 /* 状态徽章 */
 .status-badge { font-size: 12px; padding: 2px 8px; border-radius: 10px; font-weight: normal; }
 .status-badge.unprocessed { background-color: #f5f5f5; color: #8c8c8c; border: 1px solid #d9d9d9; }
