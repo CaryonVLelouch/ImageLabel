@@ -19,6 +19,16 @@ async def load_yolo_model(request: ModelLoadRequest):
         names=result["names"]
     )
 
+@router.get("/classes")
+async def get_yolo_classes():
+    """
+    直接从 YOLOv8 模型实例中读取自带的类别字典
+    model.names 的结构本身就是 {0: 'person', 1: 'bicycle', ...}
+    """
+    if yolo_service.model is not None:
+        return {"success": True, "classes": yolo_service.model.names}
+    return {"success": False, "message": "模型未加载"}
+
 @router.post("/predict", response_model=YoloPredictResponse)
 async def predict_image(file: UploadFile = File(...)):
     """
