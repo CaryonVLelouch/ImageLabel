@@ -1,80 +1,93 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import axios from 'axios';
 
 export const useImageStore = defineStore('imageStore', () => {
   // === 状态 State ===
-  const imageList = ref([]);           // 图片列表 ImageEntity[]
-  const currentImageId = ref(null);    // 当前正在编辑的图片 ID
+  const imageList = ref([]);           // 文件夹中的所有图片 ImageEntity[]
+  const currentImageId = ref(null);    // 当前显示的图片 ID
+  const classMap = ref({});            // 全局类别词典
 
   // === 计算属性 Getters ===
+  const currentImage = computed(() => imageList.value.find(img => img.id === currentImageId.value) || null);
   
-  // 获取当前正在编辑的图片对象
-  const currentImage = computed(() => {
-    return imageList.value.find(img => img.id === currentImageId.value) || null;
-  });
-
-  // 按状态分类获取图片 (方便后续分别打包导出)
-  const passedImages = computed(() => imageList.value.filter(img => img.status === 'PASS'));
-  const discardedImages = computed(() => imageList.value.filter(img => img.status === 'DISCARDED'));
+  // 获取当前图片的索引，用于进度显示 (如: 1 / 10)
+  const currentIndex = computed(() => imageList.value.findIndex(img => img.id === currentImageId.value));
+  
+  const isFirst = computed(() => currentIndex.value === 0);
+  const isLast = computed(() => currentIndex.value === imageList.value.length - 1);
 
   // === 动作 Actions ===
 
-  // 1. 添加新图片并选中
-  const addImage = (imageEntity) => {
-    imageList.value.push(imageEntity);
-    if (!currentImageId.value) {
-      currentImageId.value = imageEntity.id;
+  // 1. 批量导入文件夹图片
+  const loadImagesFromFolder = (files) => {
+    // 过滤出真正的图片文件
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+    
+    const newEntities = imageFiles.map(file => ({
+      id: `img_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      fileName: file.name,
+      fileObject: file,
+      width: 0,  // 将在实际加载到画布时更新
+      height: 0,
+      status: 'UNPROCESSED', // 初始状态
+      annotations: []
+    }));
+
+    imageList.value = newEntities;
+    if (newEntities.length > 0) {
+      currentImageId.value = newEntities[0].id; // 默认显示第一张
     }
   };
 
-  // 2. 切换当前图片
-  const setCurrentImage = (id) => {
-    currentImageId.value = id;
+  // 2. 导航控制
+  const nextImage = () => {
+    if (!isLast.value) currentImageId.value = imageList.value[currentIndex.value + 1].id;
   };
 
-  // 3. 更新当前图片的标注列表（通常在后端预标注返回，或者画布手动增删后调用）
+  const prevImage = () => {
+    if (!isFirst.value) currentImageId.value = imageList.value[currentIndex.value - 1].id;
+  };
+
+  // 3. 标记状态并自动进入下一张 (核心业务流转)
+  const markAndNext = (status) => {
+    if (currentImage.value) {
+      currentImage.value.status = status; // 'PASS' 或 'DISCARDED'
+    }
+    nextImage();
+  };
+
+  // 4. 更新标注
   const updateAnnotations = (id, newAnnotations) => {
     const img = imageList.value.find(img => img.id === id);
-    if (img) {
-      img.annotations = newAnnotations;
+    if (img) img.annotations = newAnnotations;
+  };
+
+  // 5. 初始化全局词典
+  const fetchClassMap = async () => {
+    try {
+      const res = await axios.get('http://localhost:8000/yolo/classes');
+      if (res.data.success) {
+        classMap.value = res.data.classes;
+      }
+    } catch (error) {
+      console.warn("无法获取模型自带类别，使用预设", error);
+      classMap.value = { 0: 'person', 1: 'bicycle', 2: 'car' };
     }
   };
 
-  // 4. 更新图片状态
-  const updateStatus = (id, newStatus) => {
-    const img = imageList.value.find(img => img.id === id);
-    if (img) {
-      img.status = newStatus;
-    }
-  };
-
-  // 5. 导出 YOLO 格式文本 (核心转换逻辑)
-  const generateYoloText = (imageId) => {
-    const img = imageList.value.find(img => img.id === imageId);
-    if (!img || img.annotations.length === 0) return '';
-
-    return img.annotations.map(anno => {
-      // 归一化的 min/max 转换为 YOLO 需要的 center_x, center_y, width, height (依然是归一化的)
-      const width = anno.box.x_max - anno.box.x_min;
-      const height = anno.box.y_max - anno.box.y_min;
-      const x_center = anno.box.x_min + (width / 2);
-      const y_center = anno.box.y_min + (height / 2);
-
-      // 格式：class_index x_center y_center width height
-      return `${anno.classIndex} ${x_center.toFixed(6)} ${y_center.toFixed(6)} ${width.toFixed(6)} ${height.toFixed(6)}`;
-    }).join('\n');
+  // 6. 添加新类别到全局词典
+  const addClassToMap = (newName) => {
+    const currentKeys = Object.keys(classMap.value).map(Number);
+    const newIndex = currentKeys.length > 0 ? Math.max(...currentKeys) + 1 : 0;
+    classMap.value[newIndex] = newName;
+    return newIndex;
   };
 
   return {
-    imageList,
-    currentImageId,
-    currentImage,
-    passedImages,
-    discardedImages,
-    addImage,
-    setCurrentImage,
-    updateAnnotations,
-    updateStatus,
-    generateYoloText
+    imageList, currentImageId, currentImage, classMap,
+    currentIndex, isFirst, isLast,
+    loadImagesFromFolder, nextImage, prevImage, markAndNext, 
+    updateAnnotations, fetchClassMap, addClassToMap
   };
 });
