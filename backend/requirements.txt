@@ -1,6 +1,6 @@
 fastapi>=0.100.0         # 核心 Web 框架 
 uvicorn>=0.23.0          # ASGI 服务器，用于运行 FastAPI
-ultralytics>=8.0.0       # 官方 YOLOv8 库，用于加载 .pt 模型和推理 [cite: 1]
+ultralytics>=8.0.0       # 官方 YOLOv8 库，用于加载 .pt 模型和推理
 openai>=1.0.0            # OpenAI 官方 SDK，用于 VLM 校验 
 pydantic>=2.0.0          # 数据验证和序列化
 python-multipart>=0.0.6  # 用于处理前端上传的图片文件 (如果 /yolo/predict 采用表单上传)
